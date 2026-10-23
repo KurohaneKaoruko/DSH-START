@@ -24,6 +24,14 @@
     "cordis.patch.yml",
     "README.md"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KurohaneKaoruko/DSH-START.git"
+  },
+  "homepage": "https://github.com/KurohaneKaoruko/DSH-START#readme",
+  "bugs": {
+    "url": "https://github.com/KurohaneKaoruko/DSH-START/issues"
+  },
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
