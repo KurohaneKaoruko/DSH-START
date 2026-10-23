@@ -1,0 +1,9 @@
+# dsh-boot-sequence —— bundle patch
+#
+# 把启动界面插件挂进当前 profile 的配置树。
+# 真正的画面全部在浏览器半侧（lib/client.js），这里只是让这个包成为一个
+# 合法的 bundle，并注册一个空的宿主行（宿主半侧 lib/index.js 不做任何事）。
+
+- insert:
+    - id: dsh-boot-sequence
+      name: dsh-boot-sequence

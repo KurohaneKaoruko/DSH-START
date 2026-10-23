@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>DSH // BOOT SEQUENCE · 预览</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  .hint {
+    position: fixed; right: 18px; bottom: 16px; z-index: 10;
+    display: flex; align-items: center; gap: 10px;
+    font: 600 11px/1 "Cascadia Code", Consolas, monospace;
+    letter-spacing: .18em; color: rgba(255,255,255,.35);
+  }
+  .hint button {
+    font: inherit; letter-spacing: .18em; color: rgba(255,255,255,.55);
+    background: transparent; border: 1px solid rgba(255,255,255,.18);
+    border-radius: 6px; padding: 9px 13px; cursor: pointer;
+  }
+  .hint button:hover { color: #fff; border-color: rgba(255,255,255,.5); }
+  /* ?safeTop=32 时画一条假的窗口标题栏，模拟桌面端那排窗口按钮 */
+  .fake-chrome {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 2147483600;
+    display: flex; align-items: center; justify-content: flex-end;
+    background: #202020; box-shadow: 0 1px 0 rgba(0,0,0,.6);
+  }
+  .fake-chrome i {
+    width: 46px; height: 100%; display: grid; place-items: center;
+    color: #d8d8d8; font: 12px/1 "Segoe UI Symbol", system-ui, sans-serif; font-style: normal;
+  }
+</style>
+</head>
+<body>
+<div class="hint"><span>CTRL+ALT+B</span><button id="replay">↻ REPLAY</button></div>
+
+<script>
+  // ===========================================================================
+  // 迷你运行时：把 DSH 客户端的模块外壳与 React 依赖补上，
+  // 让 lib/client.js 一个字都不用改就能在浏览器里跑（预览 = 真机同一份代码）。
+  // ===========================================================================
+  window.DSH_BOOT = { oncePerSession: false };
+  // 调试用：?hold=boot 停在启动中、?hold=granted 停在授权画面，方便截图 / 观察
+  //        ?safeTop=32 模拟桌面端标题栏高度（验证右上角不被窗口按钮压住）
+  (function () {
+    var q = new URLSearchParams(location.search);
+    var hold = q.get('hold');
+    if (hold === 'boot') window.DSH_BOOT.duration = 600000;
+    if (hold === 'granted') {
+      window.DSH_BOOT.duration = 200;
+      window.DSH_BOOT.grantedHold = 600000;
+    }
+    var safeTop = Number(q.get('safeTop') || 0);
+    if (safeTop > 0) {
+      window.DSH_BOOT.safeTop = safeTop;
+      var bar = document.createElement('div');
+      bar.className = 'fake-chrome';
+      bar.style.height = safeTop + 'px';
+      bar.innerHTML = '<i>—</i><i>▢</i><i>✕</i>';
+      document.body.appendChild(bar);
+    }
+  })();
+
+  (function () {
+    var registry = {};
+    var React = {
+      createElement: function (type, props) { return { type: type, props: props || {} }; },
+      useRef: function (init) { return { current: init === undefined ? null : init }; },
+      useEffect: function (fn) {
+        var cleanup = fn();
+        if (typeof cleanup === 'function') window.addEventListener('beforeunload', cleanup);
+      },
+      useState: function (init) { return [init, function () {}]; },
+      useMemo: function (fn) { return fn(); },
+      useCallback: function (fn) { return fn; }
+    };
+
+    window.__ModuleLoader__ = {
+      load: function (entry) {
+        var module = { exports: {} };
+        var out = entry.factory(function (name) {
+          if (name === 'react') return React;
+          if (name === 'react/jsx-runtime') return { jsx: React.createElement, jsxs: React.createElement };
+          throw new Error('[preview] 未支持的依赖：' + name);
+        });
+        registry[entry.id] = out || module.exports;
+      }
+    };
+
+    window.__previewBoot = function () {
+      var plugin = registry['dsh-boot-sequence'];
+      if (!plugin) throw new Error('[preview] 插件未加载');
+      var renderFn = null;
+      plugin.apply({
+        slots: {
+          inject: function (name, gen) { var it = gen(); while (!it.next().done) {} },
+          register: function (meta, render) { renderFn = render; return meta; }
+        }
+      }, {});
+      var element = renderFn ? renderFn({}) : null;
+      // 组件返回 null，真正的 DOM 由引擎自己挂到 body 上；这里触发一次函数组件即可跑 effect。
+      if (element && typeof element.type === 'function') element.type(element.props);
+    };
+  })();
+</script>
+
+<script src="lib/client.js"></script>
+<script>
+  window.__previewBoot();
+  document.getElementById('replay').addEventListener('click', function () {
+    window.dshBootSequence.replay();
+  });
+</script>
+</body>
+</html>
