@@ -54,17 +54,20 @@ window.DSH_BOOT = {
   rain: true,            // 数据流
   hex: true,             // 右侧十六进制流
   spectrum: true,        // 底部频谱条
-  safeTop: null,         // 顶部安全区（px）。桌面端标题栏会盖住页面顶部，
-                         // 留空则自动测量 [data-tauri-drag-region] 的高度
+  safeTop: null,         // 顶部安全区（px）。留空则自动测量桌面端标题栏高度
 };
 ```
 
-桌面端（Tauri）的窗口标题栏压在页面最上面，右上角还有最小化/最大化/关闭按钮。
-插件会自动量出标题栏高度，把四角 HUD 和边框整体下移，窗口按钮不会再压住 `SESSION / 时钟`。
-浏览器里没有标题栏，测量结果为 0，布局和原来完全一致。
+桌面端的窗口标题栏压在页面最上面，右上角还有最小化 / 最大化 / 关闭按钮。
+这些按钮是**系统原生控件**（DSH Desktop 走 Electron 的 `titleBarOverlay`，高 40px），
+网页层既盖不住也藏不掉——所以插件不硬刚，而是精确让位：
+用 `navigator.windowControlsOverlay.getTitlebarAreaRect()` 量出标题栏高度，
+把四角 HUD、边框和主面板整体下移，按钮就压不到 `SESSION / 时钟` 了。
+量不到时按 Electron 40px / Tauri 38px 兜底；浏览器里结果为 0，布局和原来完全一致。
 
 只想在开发时看一次：打开 `preview.html`，或在 URL 后加 `?hold=boot` / `?hold=granted` 把画面冻结在对应阶段。
-想验证桌面端标题栏的让位效果：加 `?safeTop=32`，预览页会画一条假的标题栏和三个窗口按钮。
+想验证桌面端标题栏的让位效果：加 `?chrome=40`，预览页会用桩数据模拟 Electron 的
+Window Controls Overlay，并画一条同高的假标题栏和三个窗口按钮。
 
 ## 结构
 

@@ -18,15 +18,15 @@
     border-radius: 6px; padding: 9px 13px; cursor: pointer;
   }
   .hint button:hover { color: #fff; border-color: rgba(255,255,255,.5); }
-  /* ?safeTop=32 时画一条假的窗口标题栏，模拟桌面端那排窗口按钮 */
+  /* ?chrome=40 时画一条假的窗口标题栏，模拟桌面端那排窗口按钮 */
   .fake-chrome {
     position: fixed; top: 0; left: 0; right: 0; z-index: 2147483600;
-    display: flex; align-items: center; justify-content: flex-end;
-    background: #202020; box-shadow: 0 1px 0 rgba(0,0,0,.6);
+    display: flex; align-items: stretch; justify-content: flex-end;
+    background: #1b1b1c; box-shadow: 0 1px 0 rgba(0,0,0,.6);
   }
   .fake-chrome i {
-    width: 46px; height: 100%; display: grid; place-items: center;
-    color: #d8d8d8; font: 12px/1 "Segoe UI Symbol", system-ui, sans-serif; font-style: normal;
+    width: 46px; display: grid; place-items: center;
+    color: #f9fafb; font: 12px/1 "Segoe UI Symbol", system-ui, sans-serif; font-style: normal;
   }
 </style>
 </head>
@@ -40,7 +40,8 @@
   // ===========================================================================
   window.DSH_BOOT = { oncePerSession: false };
   // 调试用：?hold=boot 停在启动中、?hold=granted 停在授权画面，方便截图 / 观察
-  //        ?safeTop=32 模拟桌面端标题栏高度（验证右上角不被窗口按钮压住）
+  //        ?chrome=40 模拟 DSH Desktop 的 Electron 标题栏（Window Controls Overlay，高 40px）
+  //        ?safeTop=40 手动指定顶部安全区
   (function () {
     var q = new URLSearchParams(location.search);
     var hold = q.get('hold');
@@ -49,14 +50,36 @@
       window.DSH_BOOT.duration = 200;
       window.DSH_BOOT.grantedHold = 600000;
     }
+
+    function drawChrome(h) {
+      var bar = document.createElement('div');
+      bar.className = 'fake-chrome';
+      bar.style.height = h + 'px';
+      bar.innerHTML = '<i>—</i><i>▢</i><i>✕</i>';
+      document.body.appendChild(bar);
+    }
+
+    var chromeH = Number(q.get('chrome') || 0);
+    if (chromeH > 0) {
+      // 桩：Electron 在 titleBarOverlay 模式下会暴露这个 API，插件就是靠它量高度的
+      Object.defineProperty(navigator, 'windowControlsOverlay', {
+        configurable: true,
+        value: {
+          visible: true,
+          getTitlebarAreaRect: function () {
+            return { x: 0, y: 0, width: window.innerWidth - 138, height: chromeH };
+          },
+          addEventListener: function () {},
+          removeEventListener: function () {},
+        },
+      });
+      drawChrome(chromeH);
+    }
+
     var safeTop = Number(q.get('safeTop') || 0);
     if (safeTop > 0) {
       window.DSH_BOOT.safeTop = safeTop;
-      var bar = document.createElement('div');
-      bar.className = 'fake-chrome';
-      bar.style.height = safeTop + 'px';
-      bar.innerHTML = '<i>—</i><i>▢</i><i>✕</i>';
-      document.body.appendChild(bar);
+      if (!chromeH) drawChrome(safeTop);
     }
   })();
 
