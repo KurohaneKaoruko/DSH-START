@@ -13,6 +13,8 @@
 | --- | --- |
 | ![boot](docs/boot.png) | ![granted](docs/granted.png) |
 
+完整过程（4.2 秒，1080×692）：[docs/dsh-boot-sequence.mp4](docs/dsh-boot-sequence.mp4)
+
 ## 安装
 
 插件放在 `~/.dsh/local-plugins/`，并在 profile 里登记。仓库自带脚本，一条命令搞定（会先备份 profile 的 `package.json`）：
@@ -75,6 +77,8 @@ lib/client.js       # 浏览器半侧：整屏动画引擎
 preview.html        # 脱离 DSH 的预览壳（迷你模块加载器 + 迷你 React）
 tools/install.mjs   # 安装 / 卸载
 tools/shot.mjs      # 用本机 Chrome + CDP 拍时间轴截图
+tools/fps.mjs       # 量动画帧率（rAF 间隔 + 主线程耗时）
+tools/record.mjs    # 录演示视频（CDP 抓帧 + ffmpeg 编码）
 ```
 
 ### 它是怎么挂上去的
@@ -98,10 +102,29 @@ ctx.slots.inject('shell.overlay', function* () {
 
 几个实现细节：
 
-- **字符雨**：每列按整格下落，每帧用 `rgba(0,0,0,.055)` 盖一层做拖尾衰减；少数列标成 hot，带辉光
+- **字符雨**：每列按整格下落，用半透明黑覆盖做拖尾衰减；少数列标成 hot，带辉光
 - **LOGO**：5×7 点阵 → SVG `<rect>`，一行里连续的格合并成一个矩形，避免缩放时的接缝
 - **终端日志**：一行一行打字，光标跟着走；`[FAIL]` 那一行是故意的，下一行会 `recovered`
 - **可读性**：数据流上盖一层左深右浅的渐变，左边终端区始终压得住
+- **真机信息**：版本 / 架构从 `navigator.userAgent` 读，核数用 `navigator.hardwareConcurrency`，
+  OS / CPU / 精确内存来自桌面端的 `dshDesktop.deviceInfo()`；读不到就退回占位值，浏览器预览不会崩
+
+### 性能
+
+全屏动画最容易翻车的地方，这版都避开了：
+
+- 字形**预渲染成图集**，每帧只 `drawImage` —— 逐帧 `fillText` + `shadowBlur` 是 canvas 上最贵的操作
+- 画布**像素预算封顶**（160 万），超了自动降采样；字符雨本来就是糊的，肉眼无感
+- 去掉所有全屏 `mix-blend-mode`（每帧都要 blend 整屏）和 `filter`
+- 频谱条用 `transform: scaleY()` 而不是 `height`，不触发布局
+- 日志区和十六进制流加 `contain: layout paint style`，高频重绘不外溢
+- 打字机限到 ~33ms 一次，拖尾衰减按真实帧间隔换算，帧率变了尾巴长度也不变
+
+改前改后的实测（无头 Chrome 软件渲染，1440×900，数字偏悲观）：
+**10.2 fps → 50.9 fps**，1080×693 下 **55.6 fps**。用 `node tools/fps.mjs` 可复现。
+
+录演示视频用 `node tools/record.mjs 5200 1080 692`：CDP 抓真实渲染帧（带时间戳），
+再用 ffmpeg 按真实节奏编码。本机没装 ffmpeg 的话，用 `FFMPEG` 环境变量指向任意一份可执行文件即可。
 
 ## 卸载
 

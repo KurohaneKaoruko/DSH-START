@@ -31,6 +31,7 @@
 </style>
 </head>
 <body>
+
 <div class="hint"><span>CTRL+ALT+B</span><button id="replay">↻ REPLAY</button></div>
 
 <script>
@@ -58,6 +59,11 @@
       bar.innerHTML = '<i>—</i><i>▢</i><i>✕</i>';
       document.body.appendChild(bar);
     }
+    // 性能对比用：?rain=0 / ?hex=0 单独关掉某一块，看是谁在拖帧率
+    if (q.get('rain') === '0') window.DSH_BOOT.rain = false;
+    if (q.get('hex') === '0') window.DSH_BOOT.hex = false;
+    // 录制用：?clean=1 隐藏预览控件
+    if (q.get('clean') === '1') document.querySelector('.hint').style.display = 'none';
   })();
 
   (function () {
